@@ -9,14 +9,18 @@ import scrapy
 from myspider1.items import MyspiderItem
 import json
 from urllib.parse import urljoin
+import time
 
 class myspider1(scrapy.Spider):
 
     name = "myspider"
     offset = 1
 
+
     def start_requests(self):
 
+        with open("log4.txt", "a+", encoding="utf-8") as f:
+            f.write(time.ctime() + '*'*80 + '\r\n')
         # 定义爬取的链接
         urls =["https://cd.ke.com/ershoufang/jinjiang/"]
 
@@ -47,7 +51,7 @@ class myspider1(scrapy.Spider):
         for title, price, unitprice, housename, houseinfo in zip(titles, prices, unitprices, housenames, houseinfos):
             self.log(title + price + unitprice + housename + houseinfo)
             item["title"] = title.strip()
-            item["price"] = int(price.strip())
+            item["price"] = float(price.strip())
             item["unitprice"] = unitprice.strip()
             item["housename"] = housename.strip()
             item["houseinfo"] = houseinfo.strip()
@@ -63,16 +67,16 @@ class myspider1(scrapy.Spider):
 
         if curPage == 1:
             newurl = response.urljoin(next_temp + "pg" + str(curPage))
-            with open("log3.txt", "a+", encoding="utf-8") as f:
+            with open("log4.txt", "a+", encoding="utf-8") as f:
                 f.write(newurl + '\r\n')
             for page in range(curPage,totalpage):
                 newurl = response.urljoin(next_temp + "pg" + str(page+1))
-                with open("log3.txt","a+",encoding="utf-8") as f:
+                with open("log4.txt","a+",encoding="utf-8") as f:
                     f.write(newurl+'\r\n')
                 yield scrapy.Request(newurl, callback=self.parse)
         elif curPage == totalpage:
             self.offset += 1
-            with open("log3.txt", "a+", encoding="utf-8") as f:
+            with open("log4.txt", "a+", encoding="utf-8") as f:
                 f.write("offset:"+ str(self.offset) + '\r\n')
             next_temp = response.xpath(
                 "/html/body/div[3]/div[1]/dl[2]/dd/div[1]/div[1]/a[%s]/@href" % self.offset).extract_first()
