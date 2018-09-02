@@ -10,7 +10,7 @@ class MyspiderPipeline(object):
     def __init__(self):
         client = pymongo.MongoClient()
         db = client["soufangdb"]
-        self.table = db["soufangtable4"]
+        self.table = db["soufangtable"]
 
     def process_item(self, item, spider):
 

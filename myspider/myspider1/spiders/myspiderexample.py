@@ -10,23 +10,16 @@ from myspider1.items import MyspiderItem
 import json
 from urllib.parse import urljoin
 
-class myspider1(scrapy.Spider):  # 需要继承scrapy.Spider类
+class myspider1(scrapy.Spider):
 
-    name = "myspider"  # 定义蜘蛛名
+    name = "myspider"
     offset = 1
 
-    def start_requests(self):  # 由此方法通过下面链接爬取页面
+    def start_requests(self):
 
         # 定义爬取的链接
         urls =["https://cd.ke.com/ershoufang/jinjiang/"]
-        # url1 = 'https://www.guazi.com/cd/q3jinkou/o1/#bread'
-        # for i in range(10):
-        #     urls.append(url1+str(i))
-        # print(urls)
-        # urls = [
-        #     'http://lab.scrapyd.cn/page/1/',
-        #     'http://lab.scrapyd.cn/page/2/',
-        # ]
+
         header = {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
             "Accept-Encoding":"gzip, deflate, br",
@@ -42,77 +35,48 @@ class myspider1(scrapy.Spider):  # 需要继承scrapy.Spider类
 
 
     def parse(self, response):
-        '''
-        start_requests已经爬取到页面，那如何提取我们想要的内容呢？那就可以在这个方法里面定义。
-        这里的话，并木有定义，只是简单的把页面做了一个保存，并没有涉及提取我们想要的数据，后面会慢慢说到
-        也就是用xpath、正则、或是css进行相应提取，这个例子就是让你看看scrapy运行的流程：
-        1、定义链接；
-        2、通过链接爬取（下载）页面；
-        3、定义规则，然后提取数据；
-        就是这么个流程，似不似很简单呀？
-        '''
-        # page = response.url.split("/")[-2]  # 根据上面的链接提取分页,如：/page/1/，提取到的就是：1
-        # print(response.url.split("/"))
-        # print("response is ::",response)
-        # print("response body is :::",response.url, response.body.decode('utf-8'))
-        # filename = 'myspider1-%s.html' % page  # 拼接文件名，如果是第一页，最终文件名便是：mingyan-1.html
-        # with open(filename, 'wb') as f:  # python文件操作，不多说了；
-        #     f.write(response.body)  # 刚才下载的页面去哪里了？response.body就代表了刚才下载的页面！
-        # self.log('保存文件: %s' % filename)  # 打个日志
+
         item = MyspiderItem()
-        titles = response.xpath("/html/body/div[4]/div[1]/ul//li/div[1]/div[1]/a/text()").extract()
-        prices = response.xpath("/html/body/div[4]/div[1]/ul//li/div[1]/div[6]/div[1]/span/text()").extract()
-        unitprices = response.xpath("/html/body/div[4]/div[1]/ul/li/div[1]/div[6]/div[2]/span/text()").extract()
-        housenames = response.xpath("/html/body/div[4]/div[1]/ul/li/div[1]/div[2]/div/a/text()").extract()
-        houseinfos = response.xpath("/html/body/div[4]/div[1]/ul/li/div[1]/div[2]/div/text()").extract()
+        titles = response.xpath('//div[@class="info clear"]/div[1]/a/text()').extract()
+        prices = response.xpath('//div[@class="priceInfo"]/div[1]/span/text()').extract()
+        unitprices = response.xpath('//div[@class="unitPrice"]/span/text()').extract()
+        housenames = response.xpath('//div[@class="info clear"]/div[2]/div/a/text()').extract()
+        houseinfos = response.xpath('//div[@class="houseInfo"]/text()').extract()
         district = response.xpath('//a[@class="selected CLICKDATA"]/text()').extract_first()
         # with open("houses.txt", "w",encoding="utf-8") as f:
         for title, price, unitprice, housename, houseinfo in zip(titles, prices, unitprices, housenames, houseinfos):
             self.log(title + price + unitprice + housename + houseinfo)
-            item["title"] = title
-            item["price"] = price
-            item["unitprice"] = unitprice
-            item["housename"] = housename
-            item["houseinfo"] = houseinfo
-            item["houseinfo"] = houseinfo
-            item["district"] = district
+            item["title"] = title.strip()
+            item["price"] = int(price.strip())
+            item["unitprice"] = unitprice.strip()
+            item["housename"] = housename.strip()
+            item["houseinfo"] = houseinfo.strip()
+            item["houseinfo"] = houseinfo.strip()
+            item["district"] = district.strip()
             yield item
 
-            # url = urljoin("https://cd.ke.com/ershoufang", next_temp)
-            # self.log("start to get :" + url)
         gettotalpage = response.xpath('//div[@class="page-box house-lst-page-box"]/@page-data').extract_first()
         pagejson = json.loads(gettotalpage)
         totalpage = pagejson["totalPage"]
         curPage = pagejson["curPage"]
         next_temp = response.xpath('//a[@class="selected CLICKDATA"]/@href').extract_first()
-            # for i in range(1,totalpage+1):
-            #     newurl = urljoin(url, next_temp+"/pg"+str(i))
-            #     self.log("next url is:"+newurl)
-            #     yield scrapy.Request(newurl,callback=self.parse)
-        if curPage < totalpage:
-            newurl = response.urljoin(next_temp + "pg" + str(curPage + 1))
-            yield scrapy.Request(newurl, callback=self.parse)
-        else:
+
+        if curPage == 1:
+            newurl = response.urljoin(next_temp + "pg" + str(curPage))
+            with open("log3.txt", "a+", encoding="utf-8") as f:
+                f.write(newurl + '\r\n')
+            for page in range(curPage,totalpage):
+                newurl = response.urljoin(next_temp + "pg" + str(page+1))
+                with open("log3.txt","a+",encoding="utf-8") as f:
+                    f.write(newurl+'\r\n')
+                yield scrapy.Request(newurl, callback=self.parse)
+        elif curPage == totalpage:
             self.offset += 1
+            with open("log3.txt", "a+", encoding="utf-8") as f:
+                f.write("offset:"+ str(self.offset) + '\r\n')
             next_temp = response.xpath(
                 "/html/body/div[3]/div[1]/dl[2]/dd/div[1]/div[1]/a[%s]/@href" % self.offset).extract_first()
             if next_temp:
                 url = urljoin("https://cd.ke.com/ershoufang", next_temp)
                 self.log("start to get :" + url)
                 yield scrapy.Request(url, callback=self.parse)
-
-
-        #for url in ["https://cd.ke.com/ershoufang/pg%s/" % i for i in range(2,101)]:
-        # if self.offset < 100:
-        #     self.offset += 1
-        #     self.log("start to request:" + "https://cd.ke.com/ershoufang/pg%s/" % self.offset)
-        #     yield scrapy.Request("https://cd.ke.com/ershoufang/pg%s/" % self.offset,callback=self.parse)
-
-        #next_url = 'https://cd.ke.com/ershoufang/pg3/'
-        #yield scrapy.Request()
-
-                # f.write(title+"\r\n")
-                # f.write("---" + price+"\r\n")
-                # f.write("---" + uniprice+"\r\n")
-                # f.write("---" + housename+"\r\n")
-                # f.write("---" + houseinfo+"\r\n")
